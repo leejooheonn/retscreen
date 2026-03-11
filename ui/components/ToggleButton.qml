@@ -13,7 +13,7 @@ Button {
     onClicked: captureRoot.sideBarOpen = !captureRoot.sideBarOpen
 
     contentItem: Text {
-        text: captureRoot.sideBarOpen ? "Hide ➡️" : "Show ⬅"
+        text: captureRoot.sideBarOpen ? "Hide →" : "Show ←"
         color: "white"
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
@@ -23,6 +23,6 @@ Button {
     background: Rectangle {
         color: "#2c3e50"
         opacity: 0.6 
-        radius: 4
+        radius: 6
     }
 }

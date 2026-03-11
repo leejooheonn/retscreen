@@ -2,9 +2,9 @@ import QtMultimedia
 import QtQuick
 import QtQuick.Controls
 
-Item {
+Rectangle {
     anchors.fill: parent
-    
+
     VideoOutput {
         id: cameraFeed
         objectName: "cameraFeed"

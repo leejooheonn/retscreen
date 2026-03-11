@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
+import QtQuick.Effects
 import "components"
 
 Item {
@@ -10,12 +11,12 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 0
+        spacing: 10
 
         // title header
         CaptureHeader { 
             Layout.fillWidth: true
-            Layout.preferredHeight: 50
+            Layout.preferredHeight: 60
         }
 
         // live camera feed and patient data sidebar
@@ -31,29 +32,51 @@ Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.preferredWidth: sideBarOpen ? parent.width * 0.7 : parent.width
-                    radius: 8
+                    Layout.leftMargin: 20
+                    Layout.bottomMargin: 10
+                    radius: 9
+                    color: '#f3fcff'
+
+                    border.color: '#baddfa' 
+                    border.width: 1
+                    
+                    // 2. The Glow Effect
+                    layer.enabled: true
+                    layer.effect: MultiEffect {
+                        shadowEnabled: true
+                        shadowColor: '#42007bff' 
+                        shadowBlur: 1.0
+                        shadowHorizontalOffset: -2 // Pushes the shadow to the left
+                    }
 
                     RowLayout {
                         anchors.fill: parent
                         anchors.margins: 10
 
-                        CameraFeed { 
-                            // toggle sidebar button
-                            ToggleButton { 
-                                anchors.right: parent.right
-                                anchors.top: parent.top
-                                anchors.margins: 10
-                            }
-                        }
-
-                        // capture button
-                        CaptureButton {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.bottom: parent.bottom
+                        Rectangle {
+                            id: cameraContainer
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 50
-                            Layout.bottomMargin: 20
-                        } 
+                            Layout.fillHeight: true
+
+                            CameraFeed { 
+                                anchors.fill: parent
+                                // toggle sidebar button
+                                ToggleButton { 
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.margins: 10
+                                }
+                            }
+
+                            // capture button
+                            CaptureButton {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.bottom: parent.bottom
+                                width: parent.width * 0.95
+                                height: 38
+                                anchors.margins: 10
+                            } 
+                        }
                     }
                 }
                 // patient data sidebar
