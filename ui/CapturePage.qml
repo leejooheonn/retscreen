@@ -3,7 +3,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
 import QtQuick.Effects
-import "components"
+import "CapturePage_components"
+import "Strings.js" as Tr
 
 Item {
     id: captureRoot
@@ -11,7 +12,6 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 10
 
         // title header
         CaptureHeader { 
@@ -40,7 +40,7 @@ Item {
                     border.color: '#baddfa' 
                     border.width: 1
                     
-                    // 2. The Glow Effect
+                    // glow effect
                     layer.enabled: true
                     layer.effect: MultiEffect {
                         shadowEnabled: true
@@ -57,7 +57,7 @@ Item {
                             id: cameraContainer
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-
+ 
                             CameraFeed { 
                                 anchors.fill: parent
                                 // toggle sidebar button
@@ -68,6 +68,10 @@ Item {
                                 }
                             }
 
+                            function captureImage() {
+                                console.log("captureImage function called in CapturePage.qml")
+                                //cameraContainer.children[0].captureCurrentFrame() // Assuming CameraFeed is the first child
+                            }
                             // capture button
                             CaptureButton {
                                 anchors.horizontalCenter: parent.horizontalCenter
@@ -76,6 +80,7 @@ Item {
                                 height: 38
                                 anchors.margins: 10
                             } 
+
                         }
                     }
                 }

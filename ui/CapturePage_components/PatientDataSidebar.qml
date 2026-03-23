@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../Strings.js" as Tr
 
 Rectangle {
     id: sideBarRoot
@@ -13,7 +14,7 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 15
+        anchors.margins: 13
         spacing: 20
 
         // --- SECTION 1: Patient Data ---
@@ -25,7 +26,7 @@ Rectangle {
             RowLayout {
                 Layout.fillWidth: true
                 Text {
-                    text: "Patient Information"
+                    text: Tr.get("patientinfo", window.currentLang)
                     font.bold: true
                     font.pixelSize: 16
                     color: "#2c3e50"
@@ -34,7 +35,7 @@ Rectangle {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 220
+                Layout.preferredHeight: 240
                 color: "#fcfdfe"
                 radius: 12
                 border.color: "#dbefff"
@@ -45,11 +46,11 @@ Rectangle {
                     anchors.margins: 15
                     spacing: 12
 
-                    DataField { label: "Patient ID"; value: "ROP-DEMO-001"; valueColor: "#007bff" }
-                    DataField { label: "Name"; value: "John Doe" }
-                    DataField { label: "Gestational Age"; value: "28 weeks" }
-                    DataField { label: "Birth Weight"; value: "1500 g" }
-                    DataField { label: "Screening Date"; value: "3/10/2026" }
+                    DataField { label: "patientID"; value: "ROP-DEMO-001"; valueColor: "#007bff" }
+                    DataField { label: "patientName"; value: "John Doe" }
+                    DataField { label: "age"; value: "28 " + Tr.get("week", window.currentLang) }
+                    DataField { label: "weight"; value: "1500 g" }
+                    DataField { label: "screeningDate"; value: "3/10/2026" }
                 }
             }
         }
@@ -61,7 +62,9 @@ Rectangle {
             spacing: 8
 
             Text {
-                text: "Recent Captures"
+                // make it wrap later
+                text: Tr.get("recentCaptures", window.currentLang)
+                Layout.fillWidth: false
                 font.bold: true
                 font.pixelSize: 16
                 color: "#2c3e50"
@@ -86,7 +89,7 @@ Rectangle {
 
                     Text {
                         anchors.centerIn: parent
-                        text: "No images captured yet"
+                        text: Tr.get("noCaptures", window.currentLang)
                         color: "#bdc3c7"
                         font.italic: true
                         visible: galleryGrid.count === 0

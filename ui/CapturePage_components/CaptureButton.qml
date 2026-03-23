@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../Strings.js" as Tr
 
 Button {
     id: captureButton
@@ -18,7 +19,7 @@ Button {
         }
 
         Text {
-            text: "Capture Image"
+            text: Tr.get("captureButton", window.currentLang)
             color: "white"
             font.pixelSize: 15
             font.bold: true
@@ -38,5 +39,11 @@ Button {
             GradientStop { position: 0.0; color: "#0078e0" }
             GradientStop { position: 1.0; color: "#008ebe" }
         }
+    }
+
+    // when clicked, trigger the capture function in CapturePage
+    onClicked: {
+        console.log("Capture button clicked")
+        captureRoot.captureImage()
     }
 }

@@ -1,6 +1,7 @@
 import QtQuick 
 import QtQuick.Controls 
 import QtQuick.Layouts 
+import "../Strings.js" as Tr
 
 Button {
     id: sideBarToggle
@@ -13,7 +14,7 @@ Button {
     onClicked: captureRoot.sideBarOpen = !captureRoot.sideBarOpen
 
     contentItem: Text {
-        text: captureRoot.sideBarOpen ? "Hide →" : "Show ←"
+        text: captureRoot.sideBarOpen ? Tr.get("hideButton", window.currentLang) : Tr.get("showButton", window.currentLang)
         color: "white"
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
