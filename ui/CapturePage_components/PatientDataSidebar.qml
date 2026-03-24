@@ -57,14 +57,13 @@ Rectangle {
 
         // --- SECTION 2: Image Gallery ---
         ColumnLayout {
-            Layout.fillWidth: true
-            Layout.fillHeight: true // Takes up the remaining space
+            Layout.fillHeight: true 
             spacing: 8
 
             Text {
-                // make it wrap later
                 text: Tr.get("recentCaptures", window.currentLang)
-                Layout.fillWidth: false
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
                 font.bold: true
                 font.pixelSize: 16
                 color: "#2c3e50"

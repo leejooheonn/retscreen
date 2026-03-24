@@ -13,7 +13,7 @@ RowLayout {
         color: "#7f8c8d"
         font.pixelSize: 13
         
-        Layout.preferredWidth: 115
+        Layout.preferredWidth: 120
         elide: Text.ElideRight
     }
 
