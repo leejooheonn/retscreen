@@ -6,6 +6,8 @@ import QtQuick.Effects
 import "CapturePage_components"
 import "Strings.js" as Tr
 
+// deviceManager and cameraManager are set as context properties in main.py
+
 Item {
     id: captureRoot
     property bool sideBarOpen: true
@@ -68,8 +70,18 @@ Item {
                                 }
                             }
 
+                            // brightness slider (controls Pi camera exposure)
+                            BrightnessControl {
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.bottom: captureBtn.top
+                                anchors.margins: 10
+                                height: 28
+                            }
+
                             // capture button
                             CaptureButton {
+                                id: captureBtn
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 anchors.bottom: parent.bottom
                                 width: parent.width * 0.95

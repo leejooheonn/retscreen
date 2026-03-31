@@ -57,8 +57,15 @@ Rectangle {
 
         // Image Gallery
         ColumnLayout {
-            Layout.fillHeight: true 
+            Layout.fillHeight: true
             spacing: 8
+
+            ListModel { id: captureModel }
+
+            Connections {
+                target: cameraManager
+                function onImageSaved(url) { captureModel.insert(0, { imageUrl: url }) }
+            }
 
             Text {
                 text: Tr.get("recentCaptures", window.currentLang)
@@ -84,7 +91,23 @@ Rectangle {
                     anchors.margins: 10
                     cellWidth: parent.width / 2
                     cellHeight: 110
-                    model: 0 
+                    model: captureModel
+
+                    delegate: Rectangle {
+                        width: galleryGrid.cellWidth - 6
+                        height: galleryGrid.cellHeight - 6
+                        radius: 6
+                        color: "#e8f4fd"
+                        clip: true
+
+                        Image {
+                            anchors.fill: parent
+                            anchors.margins: 3
+                            source: imageUrl
+                            fillMode: Image.PreserveAspectCrop
+                            smooth: true
+                        }
+                    }
 
                     Text {
                         anchors.centerIn: parent
