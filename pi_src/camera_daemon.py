@@ -95,7 +95,8 @@ class MJPEGHandler(BaseHTTPRequestHandler):
 # ---------- globals ----------
 cam = None
 video_config = None
-still_config = None   # pre-created in main(); used by do_capture()
+still_config = None   # pre-created in main(); rebuilt by CMD:MODE
+_capture_size = (6944, 6944)  # (w, h); updated by CMD:MODE:16MP/48MP
 output = StreamOutput()
 # Protects camera from concurrent access between preview thread and capture
 _cam_lock = threading.Lock()
@@ -116,6 +117,17 @@ def _compact_cma_async():
         log.info("CMA: pre-compaction done")
     except OSError:
         pass
+
+
+def _rebuild_still_config():
+    """Recreate still_config for the current _capture_size. Safe to call at runtime."""
+    global still_config
+    w, h = _capture_size
+    still_config = cam.create_still_configuration(
+        main={"size": (w, h), "format": "YUV420"},
+        buffer_count=1,
+    )
+    log.info(f"Still config: {w}x{h} YUV420 buffer_count=1")
 
 
 def _send_evt(text: str):
@@ -269,12 +281,15 @@ def do_capture():
             except OSError:
                 pass
             time.sleep(0.25)  # wait for async CMA compaction to complete
-        # Embed AE-lock + ScalerCrop controls so they apply from frame 1.
-        # ScalerCrop: center 6944×6944 from 9248×6944 sensor (x_off=1152, aligns to 4-px boundary).
+        # Embed AE-lock controls so they apply from frame 1.
+        # For 48MP (6944×6944): also apply ScalerCrop to square-crop the sensor.
+        # For 16MP (4624×3472): full 2×2 binned mode — no crop needed.
         _still_cfg = still_config.copy()
         _sw, _sh = cam.sensor_resolution
-        _crop_x = (_sw - _sh) // 2  # = (9248-6944)//2 = 1152 for OV64A40
-        _ctrl = {"ScalerCrop": (_crop_x, 0, _sh, _sh), "NoiseReductionMode": 0}
+        _ctrl = {}
+        if _capture_size == (6944, 6944):
+            _crop_x = (_sw - _sh) // 2   # = (9248-6944)//2 = 1152
+            _ctrl["ScalerCrop"] = (_crop_x, 0, _sh, _sh)
         if meta is not None:
             _ctrl["AeEnable"] = False
             _ctrl["ExposureTime"] = meta["ExposureTime"]
@@ -381,9 +396,18 @@ def do_capture():
 
 # ---------- command dispatch ----------
 def handle_cmd(cmd: str):
+    global _capture_size
     log.info(f"CMD: {cmd!r}")
     if cmd == "CMD:CAPTURE":
         threading.Thread(target=do_capture, daemon=True).start()
+    elif cmd == "CMD:MODE:16MP":
+        _capture_size = (4624, 3472)
+        _rebuild_still_config()
+        _send_evt("EVT:STATUS:mode_16mp")
+    elif cmd == "CMD:MODE:48MP":
+        _capture_size = (6944, 6944)
+        _rebuild_still_config()
+        _send_evt("EVT:STATUS:mode_48mp")
     elif cmd.startswith("CMD:BRIGHTNESS:"):
         try:
             val = int(cmd[15:])       # 0–100
@@ -453,14 +477,9 @@ def main():
     cfa = cam.camera_properties.get("ColorFilterArrangement", "unknown")
     log.info(f"Sensor: {sensor_w}x{sensor_h}  CFA={cfa} (0=RGGB 1=GRBG 2=BGGR 3=GBRG)")
 
-    # Pre-create still config for 1:1 square crop at full sensor height (6944×6944).
-    # ScalerCrop is applied per-capture in the control dict (can't be baked into config).
-    _cap_size = sensor_h  # 6944 — square side; sensor is 9248×6944
-    still_config = cam.create_still_configuration(
-        main={"size": (_cap_size, _cap_size), "format": "YUV420"},
-        buffer_count=1,
-    )
-    log.info(f"Still config: {_cap_size}x{_cap_size} YUV420 (1:1 square crop) buffer_count=1")
+    # Pre-create still config for default mode (48MP, 6944×6944 square crop).
+    # CMD:MODE:16MP / CMD:MODE:48MP reconfigure this at runtime.
+    _rebuild_still_config()
 
     video_config = cam.create_video_configuration(
         main={"size": (PREVIEW_W, PREVIEW_H), "format": "BGR888"},  # BGR888=RGB bytes in memory; RGB888=BGR bytes

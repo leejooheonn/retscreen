@@ -45,8 +45,9 @@ class DeviceManager(QObject):
     statusReceived   = Signal(str)
     _portFound       = Signal(str)   # internal: port name found in background thread
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, mode="48mp"):
         super().__init__(parent)
+        self._mode   = mode          # "16mp" or "48mp"; sent to Pi on every connect
         self._port   = QSerialPort(self)
         self._buffer = ""
 
@@ -93,6 +94,7 @@ class DeviceManager(QObject):
             print(f"[DeviceManager] opened {port_name}")
             self._reconnect_timer.stop()
             self.deviceConnected.emit(True)
+            self._write(f"CMD:MODE:{self._mode.upper()}")
         else:
             print(f"[DeviceManager] failed to open {port_name}: {self._port.errorString()}")
 

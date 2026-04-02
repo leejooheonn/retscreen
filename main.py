@@ -17,8 +17,11 @@ from backend.device_manager import DeviceManager
 
 PI_HTTP      = "http://192.168.7.1:8080"
 CAPTURE_PORT = 9999
-CAPTURE_W    = 6944
-CAPTURE_H    = 6944
+
+# Resolution mode: --16mp flag selects 4624×3472 (faster, ~2.5s); default is 6944×6944 (~4.4s)
+_USE_16MP = "--16mp" in sys.argv
+CAPTURE_W, CAPTURE_H = (4624, 3472) if _USE_16MP else (6944, 6944)
+_CAPTURE_MODE = "16mp" if _USE_16MP else "48mp"
 
 
 # ── MJPEG image provider + stream reader ─────────────────────────────────────
@@ -184,7 +187,7 @@ def main():
     os.environ["QT_QUICK_CONTROLS_STYLE"] = "Basic"
     engine = QQmlApplicationEngine()
 
-    device_manager = DeviceManager()
+    device_manager = DeviceManager(mode=_CAPTURE_MODE)
     engine.rootContext().setContextProperty("deviceManager", device_manager)
 
     mjpeg_provider = MjpegImageProvider()
