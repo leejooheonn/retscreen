@@ -261,6 +261,8 @@ def do_capture():
                 "AnalogueGain": meta["AnalogueGain"],
                 "AfMode":       0,       # manual — freezes VCM lens position
                 "LensPosition": lens_pos,
+                "AwbEnable":    False,
+                "ColourGains":  colour_gains,
             })
             log.info(
                 f"Capture: locked ET={meta['ExposureTime']} "
@@ -296,12 +298,14 @@ def do_capture():
             _ctrl["AnalogueGain"] = meta["AnalogueGain"]
         _still_cfg["controls"] = _ctrl
         cam.configure(_still_cfg)
+        min_fd, _, _ = cam.camera_controls.get("FrameDurationLimits", (100_000, 10_000_000, 100_000))
+        cam.set_controls({"FrameDurationLimits": (min_fd, min_fd)})
         cam.start()
 
         t1 = time.perf_counter()
         from picamera2.encoders import JpegEncoder as _JEnc
         _enc = _JEnc(num_threads=4, q=75)
-        _req = cam.capture_request()
+        _req = cam.capture_request(flush=True)
         _t_req = time.perf_counter()
         try:
             jpeg_direct = _enc.encode_func(_req, "main")
