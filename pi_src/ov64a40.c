@@ -2346,8 +2346,40 @@ static const struct cci_reg_sequence ov64a40_9248x6944[] = {
 	{ CCI_REG8(0x4888), 0x10 }, { CCI_REG8(0x4860), 0x00 },
 	{ CCI_REG8(0x4850), 0x43 }, { CCI_REG8(0x480C), 0x92 },
 	{ CCI_REG8(0x5001), 0x21 },
-	/* Disable horizontal analog+digital binning left on by 1080p video mode */
+	/*
+	 * Restore full-res timing registers left in binned state by 1080p
+	 * video mode. These values match the ov64a40_init baseline (designed
+	 * for 9248x6944). 1080p sets them to scaled-down values; leaving
+	 * them in place causes periodic horizontal stripe artifacts.
+	 *
+	 * 0x4016/0x4018 are ADC line timing (scales 4:2:1 with resolution).
+	 * 1080p leaves 0x07/0x01; full-res needs 0x1f/0x07. Wrong values
+	 * cause alternating Gr/Gb row offset errors → horizontal magenta stripes.
+	 */
+	{ CCI_REG8(0x4016), 0x1f }, { CCI_REG8(0x4018), 0x07 },
 	{ CCI_REG8(0x3721), 0x01 },
+	{ CCI_REG8(0x3712), 0x01 },
+	{ CCI_REG8(0x3822), 0x00 },
+	{ CCI_REG8(0x383d), 0x10 },
+	{ CCI_REG8(0x384c), 0x02 }, { CCI_REG8(0x384d), 0x8c },
+	{ CCI_REG8(0x3856), 0x10 }, { CCI_REG8(0x3857), 0x10 },
+	{ CCI_REG8(0x3858), 0x20 }, { CCI_REG8(0x3859), 0x20 },
+	/* Analogue path + calibration targets (1080p: 0x6a/0xa3/0x60/0x99) */
+	{ CCI_REG8(0x3703), 0x72 }, { CCI_REG8(0x3709), 0xe6 },
+	{ CCI_REG8(0x3a60), 0x68 }, { CCI_REG8(0x3a6f), 0x68 },
+	{ CCI_REG8(0x3a5e), 0xdc }, { CCI_REG8(0x3a6d), 0xdc },
+	/*
+	 * Registers where init differs from ALL sub-res modes (1080p/16MP/4K all
+	 * agree on the sub-res value). 9248x6944 relies on init's full-res values.
+	 */
+	{ CCI_REG8(0x3504), 0x0c }, { CCI_REG8(0x360d), 0x83 },
+	{ CCI_REG8(0x368a), 0x26 }, { CCI_REG8(0x3827), 0x08 },
+	{ CCI_REG8(0x4643), 0x08 },
+	/*
+	 * 0x4915/0x4916/0x4a15/0x4a16 are MIPI lane timing registers.
+	 * Writing the init values (0x00/0x0f) while streaming corrupts the
+	 * MIPI link (same failure mode as 0x481b). Leave at 1080p values.
+	 */
 };
 
 static const struct cci_reg_sequence ov64a40_8000x6000[] = {
@@ -2356,8 +2388,20 @@ static const struct cci_reg_sequence ov64a40_8000x6000[] = {
 	{ CCI_REG8(0x4888), 0x10 }, { CCI_REG8(0x4860), 0x00 },
 	{ CCI_REG8(0x4850), 0x43 }, { CCI_REG8(0x480C), 0x92 },
 	{ CCI_REG8(0x5001), 0x21 },
-	/* Disable horizontal analog+digital binning left on by 1080p video mode */
+	/* Same full-res timing + analog restore as ov64a40_9248x6944 above */
 	{ CCI_REG8(0x3721), 0x01 },
+	{ CCI_REG8(0x3712), 0x01 },
+	{ CCI_REG8(0x3822), 0x00 },
+	{ CCI_REG8(0x383d), 0x10 },
+	{ CCI_REG8(0x384c), 0x02 }, { CCI_REG8(0x384d), 0x8c },
+	{ CCI_REG8(0x3856), 0x10 }, { CCI_REG8(0x3857), 0x10 },
+	{ CCI_REG8(0x3858), 0x20 }, { CCI_REG8(0x3859), 0x20 },
+	{ CCI_REG8(0x3703), 0x72 }, { CCI_REG8(0x3709), 0xe6 },
+	{ CCI_REG8(0x3a60), 0x68 }, { CCI_REG8(0x3a6f), 0x68 },
+	{ CCI_REG8(0x3a5e), 0xdc }, { CCI_REG8(0x3a6d), 0xdc },
+	{ CCI_REG8(0x5000), 0xff }, { CCI_REG8(0x5002), 0xf5 },
+	{ CCI_REG8(0x5004), 0x80 }, { CCI_REG8(0x5068), 0x03 },
+	{ CCI_REG8(0x3684), 0x07 }, { CCI_REG8(0x481b), 0x12 },
 };
 
 static const struct cci_reg_sequence ov64a40_4624_3472[] = {
@@ -3010,6 +3054,19 @@ static int ov64a40_stop_streaming(struct ov64a40 *ov64a40,
 				  struct v4l2_subdev_state *state)
 {
 	cci_update_bits(ov64a40->cci, OV64A40_REG_SMIA, BIT(0), 0, NULL);
+
+	/*
+	 * Full-res modes write 0x4016=0x1f/0x4018=0x07 (ADC row timing).
+	 * These values leave the sensor's ADC analog state incompatible with
+	 * 1080p streaming. The only reliable recovery is a full software reset
+	 * (0x0103=0x01), which ov64a40_init provides as its first register.
+	 * Clearing sensor_inited here forces the next start_streaming call
+	 * (the 1080p video-mode restore) to run the full init sequence.
+	 */
+	if (ov64a40->mode->reglist.regvals == ov64a40_9248x6944 ||
+	    ov64a40->mode->reglist.regvals == ov64a40_8000x6000)
+		ov64a40->sensor_inited = false;
+
 	pm_runtime_mark_last_busy(ov64a40->dev);
 	pm_runtime_put_autosuspend(ov64a40->dev);
 
