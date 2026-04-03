@@ -42,6 +42,10 @@ WINDOWS_IP = "192.168.7.2"
 PREVIEW_W = 1280
 PREVIEW_H = 720
 
+# AF window: center 25%×25% of full sensor (9248×6944).
+# Eye is always centered — restricts AF to relevant area, eliminates background confusion.
+_AF_WINDOW = [(3468, 2604, 2312, 1736)]
+
 
 # ---------- MJPEG frame buffer ----------
 class StreamOutput(io.BufferedIOBase):
@@ -181,7 +185,7 @@ def preview_loop():
                         pass
                     cam.configure(video_config)
                     cam.start()
-                    cam.set_controls({"AfMode": 2, "AfSpeed": 1})
+                    cam.set_controls({"AfMode": 2, "AfSpeed": 1, "AfMetering": 1, "AfWindows": _AF_WINDOW})
                     consecutive_errors = 0
                     log.info("Preview: camera restarted OK")
                 except Exception as e2:
@@ -246,6 +250,14 @@ def do_capture():
     try:
         t0 = time.perf_counter()
 
+        # Wait for AF convergence before locking (up to ~400ms; zero cost when already focused).
+        # AfState: 0=Idle, 1=Scanning, 2=Focused, 3=Failed
+        for _ in range(8):
+            _af_pre = cam.capture_metadata()
+            if _af_pre.get("AfState", 0) == 2:
+                break
+            time.sleep(0.05)
+
         # Snapshot and lock AE/AWB/AF from the current video frame.
         meta = None
         lens_pos = 0.0
@@ -268,6 +280,7 @@ def do_capture():
                 f"Capture: locked ET={meta['ExposureTime']} "
                 f"AG={meta['AnalogueGain']:.2f} "
                 f"Lens={lens_pos:.3f} "
+                f"AfState={meta.get('AfState', '?')} "
                 f"ColourGains=({colour_gains[0]:.3f},{colour_gains[1]:.3f})"
             )
         except Exception as e:
@@ -503,17 +516,19 @@ def main():
     video_config = cam.create_video_configuration(
         main={"size": (PREVIEW_W, PREVIEW_H), "format": "BGR888"},  # BGR888=RGB bytes in memory; RGB888=BGR bytes
         controls={
-            "FrameRate": 20,
-            "AeEnable": True,
-            "AwbEnable": True,
-            "AfMode": 2,   # Continuous AF
-            "AfSpeed": 1,  # Fast AF
+            "FrameRate":  20,
+            "AeEnable":   True,
+            "AwbEnable":  True,
+            "AfMode":     2,            # Continuous AF
+            "AfSpeed":    1,            # Fast AF (uses "fast" speed profile in ov64a40.json)
+            "AfMetering": 1,            # AfMeteringWindows — use _AF_WINDOW only
+            "AfWindows":  _AF_WINDOW,   # center 25%×25% of sensor
         },
         buffer_count=2,
     )
     cam.configure(video_config)
     cam.start()
-    cam.set_controls({"AfMode": 2, "AfSpeed": 1})
+    cam.set_controls({"AfMode": 2, "AfSpeed": 1, "AfMetering": 1, "AfWindows": _AF_WINDOW})
     log.info(f"Camera started: {PREVIEW_W}x{PREVIEW_H} RGB888")
     # Pre-compact CMA now so the first capture can skip the 0.25s wait
     threading.Thread(target=_compact_cma_async, daemon=True).start()
