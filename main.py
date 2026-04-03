@@ -114,7 +114,7 @@ class ReceiveImageProcess:
     def start(self):
         captures_dir = Path(__file__).parent / "captures"
         captures_dir.mkdir(exist_ok=True)
-        script = captures_dir / "receive_image.py"
+        script = Path(__file__).parent / "receive_image.py"
         out_template = captures_dir / "ROP_Capture.jpg"
         self._proc = subprocess.Popen(
             [
