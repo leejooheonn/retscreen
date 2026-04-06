@@ -53,48 +53,8 @@ Rectangle {
                     DataField { label: "screeningDate"; value: "3/10/2026" }
                 }
             }
-        }
 
-        // Image Gallery
-        ColumnLayout {
-            Layout.fillHeight: true 
-            spacing: 8
-
-            Text {
-                text: Tr.get("recentCaptures", window.currentLang)
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                font.bold: true
-                font.pixelSize: 16
-                color: "#2c3e50"
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                color: "#f8f9fa"
-                radius: 12
-                border.color: "#eeeeee"
-                border.width: 1
-                clip: true
-
-                GridView {
-                    id: galleryGrid
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    cellWidth: parent.width / 2
-                    cellHeight: 110
-                    model: 0 
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: Tr.get("noCaptures", window.currentLang)
-                        color: "#bdc3c7"
-                        font.italic: true
-                        visible: galleryGrid.count === 0
-                    }
-                }
-            }
+            ImageGallery { }
         }
     }
 }

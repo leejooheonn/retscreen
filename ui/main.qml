@@ -9,6 +9,7 @@ ApplicationWindow {
     title: "ROP screening"
 
     property string currentLang: "EN" // default language
+    property var globalCamera: cameraManager
 
     CapturePage {
         anchors.fill: parent
