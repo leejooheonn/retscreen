@@ -41,8 +41,7 @@ Button {
         }
     }
 
-    // when clicked, trigger the capture function in CapturePage
     onClicked: {
-        cameraManager.capture()
+        cameraManager.triggerCapture()
     }
 }

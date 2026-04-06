@@ -53,8 +53,71 @@ Rectangle {
                     DataField { label: "screeningDate"; value: "3/10/2026" }
                 }
             }
+        }
 
-            ImageGallery { }
+        // Image Gallery
+        ColumnLayout {
+            Layout.fillHeight: true
+            spacing: 8
+
+            ListModel { id: captureModel }
+
+            Connections {
+                target: cameraManager
+                function onImageSaved(url) { captureModel.insert(0, { imageUrl: url }) }
+            }
+
+            Text {
+                text: Tr.get("recentCaptures", window.currentLang)
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                font.bold: true
+                font.pixelSize: 16
+                color: "#2c3e50"
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                color: "#f8f9fa"
+                radius: 12
+                border.color: "#eeeeee"
+                border.width: 1
+                clip: true
+
+                GridView {
+                    id: galleryGrid
+                    anchors.fill: parent
+                    anchors.margins: 10
+                    cellWidth: parent.width / 2
+                    cellHeight: 110
+                    model: captureModel
+
+                    delegate: Rectangle {
+                        width: galleryGrid.cellWidth - 6
+                        height: galleryGrid.cellHeight - 6
+                        radius: 6
+                        color: "#e8f4fd"
+                        clip: true
+
+                        Image {
+                            anchors.fill: parent
+                            anchors.margins: 3
+                            source: imageUrl
+                            fillMode: Image.PreserveAspectCrop
+                            smooth: true
+                        }
+                    }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: Tr.get("noCaptures", window.currentLang)
+                        color: "#bdc3c7"
+                        font.italic: true
+                        visible: galleryGrid.count === 0
+                    }
+                }
+            }
         }
     }
 }
