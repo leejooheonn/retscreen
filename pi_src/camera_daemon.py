@@ -42,9 +42,9 @@ WINDOWS_IP = "192.168.7.2"
 PREVIEW_W = 1280
 PREVIEW_H = 720
 
-# AF window: center 25%×25% of full sensor (9248×6944).
+# AF window: center 12.5%×12.5% of full sensor (9248×6944).
 # Eye is always centered — restricts AF to relevant area, eliminates background confusion.
-_AF_WINDOW = [(3468, 2604, 2312, 1736)]
+_AF_WINDOW = [(4046, 3038, 1156, 868)]
 
 
 # ---------- MJPEG frame buffer ----------
@@ -67,6 +67,40 @@ class MJPEGHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"capture triggered\n")
             threading.Thread(target=do_capture, daemon=True).start()
+            return
+        if self.path.startswith("/brightness/"):
+            try:
+                val = int(self.path[12:])
+                val = max(0, min(100, val))
+                ev = (val - 50) / 25.0
+                cam.set_controls({"ExposureValue": ev})
+                log.info(f"HTTP brightness: {val} → EV {ev:.2f}")
+                _send_evt(f"EVT:BRIGHTNESS:{val}")
+            except Exception as e:
+                log.warning(f"HTTP brightness failed: {e}")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"ok\n")
+            return
+        if self.path in ("/focus/up", "/focus/down"):
+            _focus_step(FOCUS_STEP if self.path == "/focus/up" else -FOCUS_STEP)
+            _send_evt(f"EVT:FOCUS:{_manual_lens_pos:.1f}")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"ok\n")
+            return
+        if self.path.startswith("/focus/set/"):
+            try:
+                _focus_set(float(self.path[11:]))
+                _send_evt(f"EVT:FOCUS:{_manual_lens_pos:.1f}")
+            except Exception as e:
+                log.warning(f"HTTP focus/set failed: {e}")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"ok\n")
             return
         if self.path not in ("/", "/stream.mjpg"):
             self.send_error(404)
@@ -117,8 +151,33 @@ output = StreamOutput()
 _cam_lock = threading.Lock()
 capture_lock = threading.Lock()
 _serial_port = None
+_manual_lens_pos = None   # None = continuous AF; float = manual override (diopters)
+
+FOCUS_STEP = 0.5          # lens position change per pedal press (diopters)
 # True after _compact_cma_async() finishes; allows do_capture() to skip 0.25s sleep
 _cma_clean = False
+
+
+def _focus_step(step: float):
+    """Nudge lens position by step diopters. Switches to manual AF on first call."""
+    global _manual_lens_pos
+    if _manual_lens_pos is None:
+        try:
+            meta = cam.capture_metadata()
+            _manual_lens_pos = float(meta.get("LensPosition", 0.0))
+        except Exception:
+            _manual_lens_pos = 0.0
+    _manual_lens_pos = max(0.0, min(15.0, _manual_lens_pos + step))
+    cam.set_controls({"AfMode": 0, "LensPosition": _manual_lens_pos})
+    log.info(f"Focus step {step:+.1f} → LensPosition {_manual_lens_pos:.2f}")
+
+
+def _focus_set(pos: float):
+    """Set lens position to an absolute value. Switches to manual AF."""
+    global _manual_lens_pos
+    _manual_lens_pos = max(0.0, min(15.0, pos))
+    cam.set_controls({"AfMode": 0, "LensPosition": _manual_lens_pos})
+    log.info(f"Focus set → LensPosition {_manual_lens_pos:.2f}")
 
 
 def _compact_cma_async():
@@ -470,6 +529,12 @@ def handle_cmd(cmd: str):
             _send_evt(f"EVT:BRIGHTNESS:{val}")
         except Exception as e:
             log.warning(f"Brightness cmd failed: {e}")
+    elif cmd.startswith("CMD:FOCUS:"):
+        try:
+            _focus_set(float(cmd[10:]))
+            _send_evt(f"EVT:FOCUS:{_manual_lens_pos:.1f}")
+        except Exception as e:
+            log.warning(f"Focus cmd failed: {e}")
     elif cmd == "CMD:PING":
         _send_evt("EVT:STATUS:ready")
 

@@ -5,8 +5,10 @@ Manages the USB CDC ACM serial connection to the Retinex Pi device.
 Protocol (text lines, newline-terminated):
   Windows -> Pi:  CMD:CAPTURE
                   CMD:BRIGHTNESS:<0-100>
+                  CMD:FOCUS:<diopters>
   Pi -> Windows:  EVT:CAPTURED:/path/to/image.jpg
                   EVT:BRIGHTNESS:<0-100>
+                  EVT:FOCUS:<diopters>
                   EVT:BTN_PRESSED
                   EVT:STATUS:ready
 """
@@ -41,6 +43,7 @@ class DeviceManager(QObject):
     deviceConnected  = Signal(bool)
     captureConfirmed = Signal(str)
     brightnessChanged = Signal(int)
+    focusChanged     = Signal(float)
     buttonPressed    = Signal()
     statusReceived   = Signal(str)
     captureModeChanged = Signal(str)
@@ -125,6 +128,10 @@ class DeviceManager(QObject):
     def setBrightness(self, value: int):
         self._write(f"CMD:BRIGHTNESS:{max(0, min(100, value))}")
 
+    @Slot(float)
+    def setFocus(self, pos: float):
+        self._write(f"CMD:FOCUS:{max(0.0, min(15.0, pos)):.2f}")
+
     @Slot(str)
     def setMode(self, mode: str):
         """Switch capture resolution: '16mp' or '48mp'."""
@@ -165,6 +172,12 @@ class DeviceManager(QObject):
         elif body.startswith("BRIGHTNESS:"):
             try:
                 self.brightnessChanged.emit(int(body[11:]))
+            except ValueError:
+                pass
+
+        elif body.startswith("FOCUS:"):
+            try:
+                self.focusChanged.emit(float(body[6:]))
             except ValueError:
                 pass
 

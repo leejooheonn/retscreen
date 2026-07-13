@@ -71,6 +71,7 @@ Item {
 
                                 // resolution mode toggle — top-left of camera feed
                                 Rectangle {
+                                    id: modeToggle
                                     anchors.left: parent.left
                                     anchors.top: parent.top
                                     anchors.margins: 10
@@ -119,15 +120,88 @@ Item {
                                         }
                                     }
                                 }
-                            }
 
-                            // brightness slider (controls Pi camera exposure)
-                            BrightnessControl {
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.bottom: captureBtn.top
-                                anchors.margins: 10
-                                height: 28
+                                // camera state overlay — top-left below mode toggle
+                                Rectangle {
+                                    id: cameraStateOverlay
+                                    anchors.left: parent.left
+                                    anchors.top: modeToggle.bottom
+                                    anchors.leftMargin: 10
+                                    anchors.topMargin: 6
+                                    height: 33
+                                    width: stateRow.width + 20
+                                    radius: 6
+                                    color: "#2c3e50"
+                                    opacity: 0.75
+
+                                    property int brightness: 50
+                                    property string focusText: "AUTO"
+
+                                    Connections {
+                                        target: deviceManager
+                                        function onBrightnessChanged(v) { cameraStateOverlay.brightness = v }
+                                        function onFocusChanged(v) { cameraStateOverlay.focusText = v.toFixed(1) }
+                                    }
+
+                                    Row {
+                                        id: stateRow
+                                        anchors.centerIn: parent
+                                        spacing: 14
+
+                                        Row {
+                                            spacing: 5
+                                            Text {
+                                                text: "BRT"
+                                                font.pixelSize: 11; font.bold: true
+                                                color: "#aaaaaa"
+                                                anchors.verticalCenter: parent.verticalCenter
+                                            }
+                                            TextInput {
+                                                id: brtInput
+                                                color: "white"
+                                                font.pixelSize: 11; font.bold: true
+                                                width: 28
+                                                selectByMouse: true
+                                                validator: IntValidator { bottom: 0; top: 100 }
+                                                Binding on text {
+                                                    when: !brtInput.activeFocus
+                                                    value: cameraStateOverlay.brightness.toString()
+                                                }
+                                                onAccepted: {
+                                                    var v = parseInt(text)
+                                                    if (!isNaN(v)) deviceManager.setBrightness(v)
+                                                    focus = false
+                                                }
+                                            }
+                                        }
+
+                                        Row {
+                                            spacing: 5
+                                            Text {
+                                                text: "FOC"
+                                                font.pixelSize: 11; font.bold: true
+                                                color: "#aaaaaa"
+                                                anchors.verticalCenter: parent.verticalCenter
+                                            }
+                                            TextInput {
+                                                id: focInput
+                                                color: "white"
+                                                font.pixelSize: 11; font.bold: true
+                                                width: 38
+                                                selectByMouse: true
+                                                Binding on text {
+                                                    when: !focInput.activeFocus
+                                                    value: cameraStateOverlay.focusText
+                                                }
+                                                onAccepted: {
+                                                    var v = parseFloat(text)
+                                                    if (!isNaN(v)) deviceManager.setFocus(v)
+                                                    focus = false
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
 
                             // capture button
