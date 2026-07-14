@@ -17,8 +17,8 @@ Item {
     // This sits at the very top to meet the toolbar seamlessly
     Rectangle {
         id: activeTabLine
-        z: 10 
-        width: 85 
+        z: 10
+        width: 85
         height: 3
         color: "#0070c0"
         anchors.top: parent.top
@@ -30,7 +30,7 @@ Item {
     // Setting this to #f8fafc removes the "black line" gap
     Rectangle {
         anchors.fill: parent
-        color: "#f8fafc" 
+        color: "#f8fafc"
 
         ColumnLayout {
             anchors.fill: parent
@@ -47,13 +47,13 @@ Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.preferredWidth: sideBarOpen ? parent.width * 0.7 : parent.width
-                    
+
                     // Added margins here so the "Card" looks like it's floating on the gray background
                     Layout.leftMargin: 20
                     Layout.rightMargin: 10
                     Layout.topMargin: 15
                     Layout.bottomMargin: 15
-                    
+
                     radius: 12
                     color: '#ffffff'
                     border.color: '#e2e8f0' // Softer border color for a modern look
@@ -67,9 +67,10 @@ Item {
                         CameraFeed {
                             id: liveFeed
                             anchors.fill: parent
-                            
+
                             // Resolution toggle (Top Left)
                             Rectangle {
+                                id: modeToggle
                                 anchors.left: parent.left
                                 anchors.top: parent.top
                                 anchors.margins: 10
@@ -108,19 +109,93 @@ Item {
                                 }
                             }
 
+                            // camera state overlay — top-left below mode toggle
+                            Rectangle {
+                                id: cameraStateOverlay
+                                anchors.left: parent.left
+                                anchors.top: modeToggle.bottom
+                                anchors.leftMargin: 10
+                                anchors.topMargin: 6
+                                height: 33
+                                width: stateRow.width + 20
+                                radius: 6
+                                color: "#2c3e50"
+                                opacity: 0.75
+
+                                property int brightness: 50
+                                property string focusText: "AUTO"
+
+                                Connections {
+                                    target: deviceManager
+                                    function onBrightnessChanged(v) { cameraStateOverlay.brightness = v }
+                                    function onFocusChanged(v) { cameraStateOverlay.focusText = v.toFixed(1) }
+                                }
+
+                                Row {
+                                    id: stateRow
+                                    anchors.centerIn: parent
+                                    spacing: 14
+
+                                    Row {
+                                        spacing: 5
+                                        Text {
+                                            text: "BRT"
+                                            font.pixelSize: 11; font.bold: true
+                                            color: "#aaaaaa"
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        TextInput {
+                                            id: brtInput
+                                            color: "white"
+                                            font.pixelSize: 11; font.bold: true
+                                            width: 28
+                                            selectByMouse: true
+                                            validator: IntValidator { bottom: 0; top: 100 }
+                                            Binding on text {
+                                                when: !brtInput.activeFocus
+                                                value: cameraStateOverlay.brightness.toString()
+                                            }
+                                            onAccepted: {
+                                                var v = parseInt(text)
+                                                if (!isNaN(v)) deviceManager.setBrightness(v)
+                                                focus = false
+                                            }
+                                        }
+                                    }
+
+                                    Row {
+                                        spacing: 5
+                                        Text {
+                                            text: "FOC"
+                                            font.pixelSize: 11; font.bold: true
+                                            color: "#aaaaaa"
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        TextInput {
+                                            id: focInput
+                                            color: "white"
+                                            font.pixelSize: 11; font.bold: true
+                                            width: 38
+                                            selectByMouse: true
+                                            Binding on text {
+                                                when: !focInput.activeFocus
+                                                value: cameraStateOverlay.focusText
+                                            }
+                                            onAccepted: {
+                                                var v = parseFloat(text)
+                                                if (!isNaN(v)) deviceManager.setFocus(v)
+                                                focus = false
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             ToggleButton {
                                 anchors.right: parent.right
                                 anchors.top: parent.top
                                 anchors.margins: 10
                             }
-                        }
-
-                        BrightnessControl {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: captureBtn.top
-                            anchors.bottomMargin: 10
-                            height: 28
                         }
 
                         CaptureButton {
