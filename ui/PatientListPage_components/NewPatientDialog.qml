@@ -8,29 +8,25 @@ Dialog {
     standardButtons: Dialog.NoButton
     anchors.centerIn: Overlay.overlay
     
-    // 1. PROFESSIONAL BACKGROUND
     background: Rectangle {
         implicitWidth: 460
-        radius: 16 // More rounded for a modern medical feel
+        radius: 16
         color: "#ffffff"
-        
-        // Subtle drop shadow effect using a border
         border.color: "#e2e8f0"
         border.width: 1
     }
 
     contentItem: ColumnLayout {
-        spacing: 24 // Increased spacing for a breathable layout
+        spacing: 24
         
         Text {
             text: "Add New Patient Details"
             font.pixelSize: 22
             font.weight: Font.Bold
-            color: "#0f172a" // Deep Navy/Black
+            color: "#0f172a"
             Layout.topMargin: 10
         }
 
-        // 2. REFINED INPUT COMPONENT
         component CustomInput : ColumnLayout {
             property alias label: lbl.text
             property alias placeholder: field.placeholderText
@@ -42,7 +38,7 @@ Dialog {
                 id: lbl
                 font.pixelSize: 13
                 font.weight: Font.Medium
-                color: "#64748b" // Professional Slate Gray
+                color: "#64748b"
             }
             
             TextField {
@@ -59,8 +55,6 @@ Dialog {
                     color: field.activeFocus ? "#ffffff" : "#f8fafc"
                     border.color: field.activeFocus ? "#0070c0" : "#e2e8f0"
                     border.width: field.activeFocus ? 2 : 1
-                    
-                    // Smooth transition for focus
                     Behavior on border.color { ColorAnimation { duration: 150 } }
                 }
             }
@@ -75,7 +69,6 @@ Dialog {
             CustomInput { id: weightIn; label: "Birth Weight (g)"; placeholder: "1200" }
         }
 
-        // 3. CUSTOM PROFESSIONAL BUTTONS
         RowLayout {
             Layout.alignment: Qt.AlignRight
             Layout.topMargin: 10
@@ -113,7 +106,6 @@ Dialog {
 
                 background: Rectangle {
                     radius: 8
-                    // Matches the "New Patient" button blue
                     color: saveBtn.pressed ? "#005a9e" : (saveBtn.hovered ? "#0078d4" : "#0070c0")
                 }
                 
@@ -123,14 +115,13 @@ Dialog {
                         year: 'numeric', month: '2-digit', day: '2-digit'
                     });
                     
-                    patientModel.append({
-                        "patientId": idIn.text,
-                        "name": nameIn.text,
-                        "gestation": gestIn.text + " weeks",
-                        "weight": weightIn.text + "g",
-                        "date": dateString,
-                        "imageCount": 0
-                    })
+                    patientDb.addPatient(
+                        idIn.text,
+                        nameIn.text,
+                        gestIn.text + " weeks",
+                        weightIn.text + "g",
+                        dateString
+                    )
                     addPatientDialog.close()
                 }
             }

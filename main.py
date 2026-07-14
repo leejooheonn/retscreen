@@ -14,20 +14,21 @@ from PySide6.QtCore import QObject, Slot, Signal, Property, QUrl, QSize
 from PySide6.QtQuick import QQuickImageProvider
 
 from backend.device_manager import DeviceManager
+from backend.patient_db import PatientDatabase
 
 PI_HTTP      = "http://192.168.7.1:8080"
 CAPTURE_PORT = 9999
 
-# Resolution mode: --16mp flag selects 4624×3472 (faster, ~2.5s); default is 6944×6944 (~4.4s)
+# Resolution mode: --16mp flag selects 4624x3472 (faster, ~2.5s); default is 6944x6944 (~4.4s)
 _USE_16MP = "--16mp" in sys.argv
 CAPTURE_W, CAPTURE_H = (4624, 3472) if _USE_16MP else (6944, 6944)
 _CAPTURE_MODE = "16mp" if _USE_16MP else "48mp"
 
 
-# ── MJPEG image provider + stream reader ─────────────────────────────────────
+# -- MJPEG image provider + stream reader --------------------------------
 
 class MjpegImageProvider(QQuickImageProvider):
-    """Stores the latest JPEG frame; QML pulls it synchronously — no blank flash."""
+    """Stores the latest JPEG frame; QML pulls it synchronously - no blank flash."""
 
     def __init__(self):
         super().__init__(QQuickImageProvider.ImageType.Image)
@@ -69,7 +70,7 @@ class MjpegStream(QObject):
             try:
                 self._read_stream()
             except Exception as e:
-                print(f"Stream error: {e} — retrying in 2s", flush=True)
+                print(f"Stream error: {e} - retrying in 2s", flush=True)
                 time.sleep(2)
 
     def _read_stream(self):
@@ -97,12 +98,12 @@ class MjpegStream(QObject):
                 self.frameChanged.emit()
 
 
-# ── receive_image.py subprocess ───────────────────────────────────────────────
+# -- receive_image.py subprocess ------------------------------------------
 
 class ReceiveImageProcess:
     """
     Runs receive_image.py --loop as a persistent subprocess.
-    The TCP listener is always ready — no race with the HTTP trigger.
+    The TCP listener is always ready - no race with the HTTP trigger.
     Stdout is forwarded to main.py's console; saved-file paths are parsed
     and forwarded to CameraManager.imageSaved.
     """
@@ -143,13 +144,13 @@ class ReceiveImageProcess:
                 last_was_progress = True
             else:
                 if last_was_progress:
-                    print()  # move past the progress line
+                    print()
                     last_was_progress = False
                 print(f"[receive_image] {line}", flush=True)
                 if line.startswith("[+] Saved:"):
                     path_part = line[10:].strip().split("  ")[0].strip()
                     elapsed = time.perf_counter() - self._cm._capture_start
-                    print(f"[receive_image] Total time (button → saved): {elapsed:.1f}s", flush=True)
+                    print(f"[receive_image] Total time (button -> saved): {elapsed:.1f}s", flush=True)
                     url = QUrl.fromLocalFile(path_part).toString()
                     self._cm.imageSaved.emit(url)
         if last_was_progress:
@@ -157,7 +158,7 @@ class ReceiveImageProcess:
         print("[receive_image] process exited", flush=True)
 
 
-# ── Capture manager ───────────────────────────────────────────────────────────
+# -- Capture manager --------------------------------------------------------
 
 class CameraManager(QObject):
     imageSaved = Signal(str)
@@ -180,7 +181,7 @@ class CameraManager(QObject):
             print(f"Capture: HTTP trigger failed: {e}", flush=True)
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
+# -- Entry point --------------------------------------------------------
 
 def main():
     app = QGuiApplication(sys.argv)
@@ -199,6 +200,10 @@ def main():
     camera_manager = CameraManager()
     engine.rootContext().setContextProperty("cameraManager", camera_manager)
 
+    patient_db = PatientDatabase()
+    engine.rootContext().setContextProperty("patientDb", patient_db)
+    print("[main] patientDb registered successfully", flush=True)
+    
     receive_proc = ReceiveImageProcess(camera_manager)
 
     qml_file = Path(__file__).parent / "ui" / "main.qml"
