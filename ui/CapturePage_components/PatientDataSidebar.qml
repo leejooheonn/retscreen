@@ -12,6 +12,33 @@ Rectangle {
 
     Behavior on Layout.preferredWidth { NumberAnimation { duration: 250; easing.type: Easing.InOutQuad } }
 
+    Popup {
+        id: fullImagePopup
+        property string imageSource: ""
+
+        anchors.centerIn: Overlay.overlay
+        width: Overlay.overlay ? Overlay.overlay.width * 0.8 : 600
+        height: Overlay.overlay ? Overlay.overlay.height * 0.8 : 600
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle { color: "#000000"; radius: 8 }
+
+        Image {
+            anchors.fill: parent
+            anchors.margins: 10
+            source: fullImagePopup.imageSource
+            fillMode: Image.PreserveAspectFit
+            asynchronous: true
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: fullImagePopup.close()
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 13
@@ -22,7 +49,6 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 8
 
-            // Clean Title Row
             RowLayout {
                 Layout.fillWidth: true
                 Text {
@@ -48,7 +74,6 @@ Rectangle {
 
                     DataField { 
                         label: "patientID"
-                        // If activePatient exists, show the ID. Otherwise, show "N/A"
                         value: activePatient ? activePatient.patientId : "---" 
                         valueColor: "#007bff" 
                     }
@@ -79,9 +104,26 @@ Rectangle {
 
             ListModel { id: captureModel }
 
+            function loadCapturesForActivePatient() {
+                captureModel.clear()
+                if (!activePatient) return
+                var paths = patientDb.getCaptures(activePatient.patientId)
+                for (var i = 0; i < paths.length; i++) {
+                    captureModel.append({ imageUrl: paths[i] })
+                }
+            }
+
+            Component.onCompleted: loadCapturesForActivePatient()
+
             Connections {
                 target: cameraManager
-                function onImageSaved(url) { captureModel.insert(0, { imageUrl: url }) }
+                function onImageSaved(url) {
+                    if (activePatient) {
+                        // Strip file:// prefix for DB storage, keep url form for QML Image
+                        patientDb.addCapture(activePatient.patientId, url)
+                    }
+                    captureModel.insert(0, { imageUrl: url })
+                }
             }
 
             Text {
@@ -123,6 +165,15 @@ Rectangle {
                             source: imageUrl
                             fillMode: Image.PreserveAspectCrop
                             smooth: true
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                fullImagePopup.imageSource = imageUrl
+                                fullImagePopup.open()
+                            }
                         }
                     }
 

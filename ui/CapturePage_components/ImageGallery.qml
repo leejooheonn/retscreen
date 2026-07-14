@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import "../Strings.js" as Tr
 
@@ -51,13 +52,22 @@ ColumnLayout {
                     radius: 8
                     color: "white"
                     border.color: "#dddddd"
-                    clip:true
+                    clip: true
 
                     Image {
                         anchors.fill: parent 
-                        source: model.fileSource
+                        source: model.filesource
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            fullImagePopup.imageSource = model.filesource
+                            fullImagePopup.open()
+                        }
                     }
                 }
             }
@@ -69,6 +79,36 @@ ColumnLayout {
                 font.italic: true
                 visible: galleryGrid.count === 0
             }
+        }
+    }
+
+    Popup {
+        id: fullImagePopup
+        property alias imageSource: fullImage.source
+
+        anchors.centerIn: Overlay.overlay
+        width: Overlay.overlay ? Overlay.overlay.width * 0.8 : 600
+        height: Overlay.overlay ? Overlay.overlay.height * 0.8 : 600
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            color: "#000000"
+            radius: 8
+        }
+
+        Image {
+            id: fullImage
+            anchors.fill: parent
+            anchors.margins: 10
+            fillMode: Image.PreserveAspectFit
+            asynchronous: true
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: fullImagePopup.close()
         }
     }
 }
