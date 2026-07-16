@@ -16,6 +16,10 @@ from PySide6.QtQuick import QQuickImageProvider
 from backend.device_manager import DeviceManager
 from backend.patient_db import PatientDatabase
 
+_POPEN_KWARGS = {}
+if sys.platform == "win32":
+    _POPEN_KWARGS["creationflags"] = subprocess.CREATE_NO_WINDOW
+
 PI_HTTP      = "http://192.168.7.1:8080"
 CAPTURE_PORT = 9999
 
@@ -135,7 +139,7 @@ class ReceiveImageProcess:
             text=True,
             bufsize=1,
             env={**os.environ, "PYTHONUTF8": "1"},
-            creationflags=subprocess.CREATE_NO_WINDOW,
+            **_POPEN_KWARGS,
         )
         threading.Thread(target=self._read_output, daemon=True).start()
         print(f"[receive_image] started (PID {self._proc.pid})", flush=True)
