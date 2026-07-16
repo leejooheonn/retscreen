@@ -32,6 +32,7 @@ SERIAL_DEV        = "/dev/ttyGS0"
 PREVIEW_PORT      = 8080
 CAPTURE_PORT      = 9999
 BUTTON_PIN        = 17
+LED_PIN           = 18
 BUTTON_DEBOUNCE_S = 0.3
 JPEG_QUALITY      = 65
 
@@ -152,6 +153,7 @@ _cam_lock = threading.Lock()
 capture_lock = threading.Lock()
 _serial_port = None
 _manual_lens_pos = None   # None = continuous AF; float = manual override (diopters)
+_led = None               # gpiozero PWMLED instance, set in main()
 
 FOCUS_STEP = 0.5          # lens position change per pedal press (diopters)
 # True after _compact_cma_async() finishes; allows do_capture() to skip 0.25s sleep
@@ -526,6 +528,8 @@ def handle_cmd(cmd: str):
             val = int(cmd[15:])       # 0–100
             ev = (val - 50) / 25.0   # map 0–100 to -2.0 to +2.0 EV
             cam.set_controls({"ExposureValue": ev})
+            if _led is not None:
+                _led.value = val / 100.0  # 0.0–1.0 PWM duty cycle
             _send_evt(f"EVT:BRIGHTNESS:{val}")
         except Exception as e:
             log.warning(f"Brightness cmd failed: {e}")
@@ -537,6 +541,10 @@ def handle_cmd(cmd: str):
             log.warning(f"Focus cmd failed: {e}")
     elif cmd == "CMD:PING":
         _send_evt("EVT:STATUS:ready")
+    elif cmd == "CMD:SHUTDOWN":
+        _send_evt("EVT:STATUS:shutting_down")
+        time.sleep(0.5)
+        os.system("sudo poweroff")
 
 
 # ---------- serial loop ----------
@@ -617,6 +625,16 @@ def main():
     cam.start()
     cam.set_controls({"AfMode": 2, "AfSpeed": 1, "AfMetering": 1, "AfWindows": _AF_WINDOW})
     log.info(f"Camera started: {PREVIEW_W}x{PREVIEW_H} RGB888")
+
+    # Initialise LED on GPIO18 via MOSFET — turn on at 50% brightness to start
+    global _led
+    try:
+        from gpiozero import PWMLED
+        _led = PWMLED(LED_PIN)
+        _led.value = 0.5
+        log.info(f"LED: GPIO{LED_PIN} on at 50% brightness")
+    except Exception as e:
+        log.warning(f"LED init failed: {e}")
     # Pre-compact CMA now so the first capture can skip the 0.25s wait
     threading.Thread(target=_compact_cma_async, daemon=True).start()
 
@@ -658,6 +676,8 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         log.info("Shutting down...")
+        if _led is not None:
+            _led.off()
         cam.stop()
 
 
