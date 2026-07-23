@@ -32,6 +32,7 @@ SERIAL_DEV        = "/dev/ttyGS0"
 PREVIEW_PORT      = 8080
 CAPTURE_PORT      = 9999
 BUTTON_PIN        = 17
+LED_PIN           = 18
 BUTTON_DEBOUNCE_S = 0.3
 JPEG_QUALITY      = 65
 
@@ -109,6 +110,13 @@ class MJPEGHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=FRAME")
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
+        global _stream_clients
+        with _stream_clients_lock:
+            _stream_clients += 1
+            if _stream_clients == 1 and _led is not None:
+                import lgpio as _lgpio
+                _lgpio.gpio_write(_led, LED_PIN, 1)
+                log.info("LED: on (client connected)")
         try:
             while True:
                 with output.condition:
@@ -125,6 +133,13 @@ class MJPEGHandler(BaseHTTPRequestHandler):
                 self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError, OSError):
             pass
+        finally:
+            with _stream_clients_lock:
+                _stream_clients -= 1
+                if _stream_clients == 0 and _led is not None:
+                    import lgpio as _lgpio
+                    _lgpio.gpio_write(_led, LED_PIN, 0)
+                    log.info("LED: off (no clients)")
 
     def log_message(self, *a):
         pass
@@ -132,6 +147,8 @@ class MJPEGHandler(BaseHTTPRequestHandler):
 
 
 # ---------- globals ----------
+_stream_clients = 0
+_stream_clients_lock = threading.Lock()
 cam = None
 video_config = None
 still_config = None   # pre-created in main(); rebuilt by CMD:MODE
@@ -152,6 +169,7 @@ _cam_lock = threading.Lock()
 capture_lock = threading.Lock()
 _serial_port = None
 _manual_lens_pos = None   # None = continuous AF; float = manual override (diopters)
+_led = None               # gpiozero PWMLED instance, set in main()
 
 FOCUS_STEP = 0.5          # lens position change per pedal press (diopters)
 # True after _compact_cma_async() finishes; allows do_capture() to skip 0.25s sleep
@@ -526,6 +544,9 @@ def handle_cmd(cmd: str):
             val = int(cmd[15:])       # 0–100
             ev = (val - 50) / 25.0   # map 0–100 to -2.0 to +2.0 EV
             cam.set_controls({"ExposureValue": ev})
+            if _led is not None:
+                import lgpio as _lgpio
+                _lgpio.gpio_write(_led, LED_PIN, 1 if val > 0 else 0)
             _send_evt(f"EVT:BRIGHTNESS:{val}")
         except Exception as e:
             log.warning(f"Brightness cmd failed: {e}")
@@ -537,6 +558,10 @@ def handle_cmd(cmd: str):
             log.warning(f"Focus cmd failed: {e}")
     elif cmd == "CMD:PING":
         _send_evt("EVT:STATUS:ready")
+    elif cmd == "CMD:SHUTDOWN":
+        _send_evt("EVT:STATUS:shutting_down")
+        time.sleep(0.5)
+        os.system("sudo poweroff")
 
 
 # ---------- serial loop ----------
@@ -617,6 +642,18 @@ def main():
     cam.start()
     cam.set_controls({"AfMode": 2, "AfSpeed": 1, "AfMetering": 1, "AfWindows": _AF_WINDOW})
     log.info(f"Camera started: {PREVIEW_W}x{PREVIEW_H} RGB888")
+
+    # Initialise LED on GPIO18 via MOSFET using lgpio directly
+    global _led
+    try:
+        import lgpio as _lgpio
+        _led = _lgpio.gpiochip_open(0)
+        _lgpio.gpio_claim_output(_led, LED_PIN)
+        _lgpio.gpio_write(_led, LED_PIN, 0)
+        log.info(f"LED: GPIO{LED_PIN} ready (off until UI connects)")
+    except Exception as e:
+        log.warning(f"LED init failed: {e}")
+        _led = None
     # Pre-compact CMA now so the first capture can skip the 0.25s wait
     threading.Thread(target=_compact_cma_async, daemon=True).start()
 
@@ -658,6 +695,10 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         log.info("Shutting down...")
+        if _led is not None:
+            import lgpio as _lgpio
+            _lgpio.gpio_write(_led, LED_PIN, 0)
+            _lgpio.gpiochip_close(_led)
         cam.stop()
 
 
